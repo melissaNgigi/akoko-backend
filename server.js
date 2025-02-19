@@ -8,7 +8,7 @@ const cors = require('cors');
 // Add CORS configuration for production
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
-        ? 'https://your-truehost-domain.com' 
+        ? ['https://akokoschool.co.ke', 'http://akokoschool.co.ke']
         : 'http://localhost:4000',
     credentials: true
 };
@@ -47,7 +47,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: false, // set to true in production with HTTPS
+        secure: process.env.NODE_ENV === 'production', // true in production
         maxAge: 3600000 // 1 hour
     }
 }));
