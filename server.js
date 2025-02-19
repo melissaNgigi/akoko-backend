@@ -5,14 +5,15 @@ const app = express();
 const session = require('express-session');
 const cors = require('cors');
 
-// Add CORS configuration for production
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://akokoschool.co.ke', 'http://akokoschool.co.ke']
+        ? ['https://akokoschool.co.ke', 'https://akoko-backend.onrender.com']
         : 'http://localhost:4000',
     credentials: true
 };
+
 app.use(cors(corsOptions));
+
 
 // Middleware
 app.use(express.json());
@@ -47,7 +48,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production', // true in production
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 3600000 // 1 hour
     }
 }));
