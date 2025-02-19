@@ -1,0 +1,46 @@
+{
+  "years": [
+    {
+      "year": "2018",
+      "boys": 340,
+      "girls": 220,
+      "total": 560
+    },
+    {
+      "year": "2019",
+      "boys": 400,
+      "girls": 219,
+      "total": 619
+    },
+    {
+      "year": "2020",
+      "boys": 600,
+      "girls": 250,
+      "total": 850
+    },
+    {
+      "year": "2021",
+      "boys": 615,
+      "girls": 346,
+      "total": 961
+    },
+    {
+      "year": "2022",
+      "boys": 600,
+      "girls": 550,
+      "total": 1150
+    },
+    {
+      "year": "2023",
+      "boys": 611,
+      "girls": 374,
+      "total": 985
+    },
+    {
+      "year": "2024",
+      "boys": 698,
+      "girls": 594,
+      "total": 1292
+    }
+  ]
+}
