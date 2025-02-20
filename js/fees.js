@@ -1,7 +1,7 @@
 // Load current fees when the page loads
 async function loadCurrentFees() {
     try {
-        const response = await fetch('/admin/fees');
+        const response = await fetch('https://akoko-backend.onrender.com/admin/fees');
         const data = await response.json();
         
         // Populate form fields with current values
@@ -31,7 +31,7 @@ document.getElementById('feesForm').addEventListener('submit', async function(e)
     };
 
     try {
-        const response = await fetch('/admin/update-fees', {
+        const response = await fetch('https://akoko-backend.onrender.com/admin/update-fees', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

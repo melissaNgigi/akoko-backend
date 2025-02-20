@@ -165,12 +165,12 @@ router.post('/change-credentials', (req, res) => {
 router.post('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Error logging out' 
-            });
+            console.error('Error destroying session:', err);
+            res.status(500).json({ success: false, message: 'Error logging out' });
+        } else {
+            res.clearCookie('connect.sid');
+            res.json({ success: true });
         }
-        res.json({ success: true });
     });
 });
 

@@ -7,9 +7,12 @@ const cors = require('cors');
 
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://akokoschool.co.ke', 'https://akoko-backend.onrender.com']
+        ? ['https://akokoschool.co.ke', 'http://akokoschool.co.ke', 'https://akoko-backend.onrender.com']
         : 'http://localhost:4000',
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['set-cookie']
 };
 
 app.use(cors(corsOptions));
@@ -49,7 +52,9 @@ app.use(session({
     saveUninitialized: false,
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 3600000 // 1 hour
+        sameSite: 'none',
+        maxAge: 3600000, // 1 hour
+        domain: process.env.NODE_ENV === 'production' ? '.akokoschool.co.ke' : undefined
     }
 }));
 
