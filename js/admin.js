@@ -90,6 +90,7 @@ const upload = multer({ storage: storage });
 
 // Check authentication status
 router.get('/check-auth', (req, res) => {
+    console.log('Checking auth, session:', req.session);
     res.json({ authenticated: !!req.session.isAdmin });
 });
 
@@ -98,18 +99,15 @@ router.post('/login', (req, res) => {
     console.log('Received login request:', req.body);
     const { username, password } = req.body;
     const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
-    console.log('Stored credentials username:', credentials.username);
-    console.log('Stored password hash:', credentials.password);
-    console.log('Attempting to match password:', password);
-
+    
     if (username === credentials.username && 
         bcrypt.compareSync(password, credentials.password)) {
         console.log('Login successful');
         req.session.isAdmin = true;
+        console.log('Session after login:', req.session);
         res.json({ success: true });
     } else {
-        console.log('Login failed - username match:', username === credentials.username);
-        console.log('Login failed - password match:', bcrypt.compareSync(password, credentials.password));
+        console.log('Login failed');
         res.json({ success: false });
     }
 });
