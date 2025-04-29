@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { auth, JWT_SECRET } = require('../middleware/auth');
+const { getDatabase } = require('./db');
 
 // Simple file writing function
 const writeFileSync = (filePath, data) => {
@@ -196,128 +197,177 @@ router.post('/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Get fees
-router.get('/fees', (req, res) => {
+// Initialize MongoDB collections with default data
+async function initializeCollections() {
     try {
-        console.log('Reading fees from:', FEES_FILE);
+        const db = getDatabase();
         
-        if (!fs.existsSync(FEES_FILE)) {
-            console.log('Fees file not found, creating with default values');
-            const defaultFees = {
-                boarding_term1: 20268,
-                boarding_term2: 12160,
-                boarding_term3: 8107,
-                day_term1: 7000,
-                day_term2: 4200,
-                day_term3: 2800
-            };
-            fs.writeFileSync(FEES_FILE, JSON.stringify(defaultFees, null, 2));
-            return res.json({
-                success: true,
-                ...defaultFees
+        // Initialize fees collection
+        const feesExists = await db.collection('fees').findOne({});
+        if (!feesExists) {
+            await db.collection('fees').insertOne({
+                department: 'default',
+                fees: {
+                    boarding_term1: 20268,
+                    boarding_term2: 12160,
+                    boarding_term3: 8107,
+                    day_term1: 7000,
+                    day_term2: 4200,
+                    day_term3: 2800
+                }
             });
         }
+
+        // Initialize staff collection
+        const staffExists = await db.collection('staff').findOne({});
+        if (!staffExists) {
+            const defaultStaff = [
+                { department: 'mathematics', name: "Mr. Maurice Tuju" },
+                { department: 'science', name: "Mrs. Jane Smith" },
+                { department: 'languages', name: "Ms. Mary Johnson" },
+                { department: 'humanities', name: "Mr. James Brown" },
+                { department: 'technical', name: "Mr. Robert Wilson" },
+                { department: 'boarding', name: "Mrs. Sarah Williams" },
+                { department: 'games', name: "Mr. David Miller" },
+                { department: 'academics', name: "Dr. Elizabeth Taylor" }
+            ];
+            await db.collection('staff').insertMany(defaultStaff);
+        }
+
+        // Initialize enrollment collection
+        const enrollmentExists = await db.collection('enrollment').findOne({});
+        if (!enrollmentExists) {
+            await db.collection('enrollment').insertOne({
+                years: [
+                    {
+                        year: "2024",
+                        boys: 694,
+                        girls: 600,
+                        total: 1294
+                    }
+                ]
+            });
+        }
+
+        // Initialize board members collection
+        const boardMembersExists = await db.collection('board_members').findOne({});
+        if (!boardMembersExists) {
+            await db.collection('board_members').insertOne({
+                members: []
+            });
+        }
+
+        console.log('MongoDB collections initialized successfully');
+    } catch (error) {
+        console.error('Error initializing MongoDB collections:', error);
+    }
+}
+
+// Call initialization when the server starts
+initializeCollections();
+
+// Update the public fees endpoint to match frontend expectations
+router.get('/public-fees', async (req, res) => {
+    try {
+        const db = getDatabase();
+        const fees = await db.collection('fees').findOne({ department: 'default' });
         
-        const fees = JSON.parse(fs.readFileSync(FEES_FILE, 'utf8'));
-        console.log('Sending fees data:', fees);
-        
+        if (!fees) {
+            return res.status(404).json({
+                success: false,
+                message: 'Fees data not found'
+            });
+        }
+
         res.json({
             success: true,
-            ...fees
+            ...fees.fees
         });
     } catch (error) {
         console.error('Error reading fees:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error reading fees data: ' + error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error reading fees data'
         });
     }
 });
 
-// Update fees
-router.post('/update-fees', auth, (req, res) => {
-    try {
-        console.log('Received update request:', req.body);
-        
-        const requiredFields = [
-            'boarding_term1', 'boarding_term2', 'boarding_term3',
-            'day_term1', 'day_term2', 'day_term3'
-        ];
-        
-        // Validate the data
-        for (const field of requiredFields) {
-            if (typeof req.body[field] !== 'number') {
-                return res.status(400).json({
-                    success: false,
-                    message: `Invalid value for ${field}`
-                });
-            }
-        }
-
-        // Get the absolute path
-        const filePath = path.resolve(FEES_FILE);
-        console.log('Writing to:', filePath);
-
-        // Create the data directory if it doesn't exist
-        const dataDir = path.dirname(filePath);
-        if (!fs.existsSync(dataDir)) {
-            console.log('Creating data directory:', dataDir);
-            fs.mkdirSync(dataDir, { recursive: true });
-        }
-
-        // Write the file
-        console.log('Writing data:', req.body);
-        fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
-        
-        // Verify the write
-        const writtenData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        console.log('Verification - Written data:', writtenData);
-        
-        res.json({ 
-            success: true,
-            message: 'Fees updated successfully',
-            data: writtenData
-        });
-    } catch (error) {
-        console.error('Error updating fees:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error updating fees: ' + error.message 
-        });
-    }
-});
-
-// Public fees endpoint
-router.get('/public-fees', (req, res) => {
-    try {
-        const fees = JSON.parse(fs.readFileSync(FEES_FILE));
-        res.json({ success: true, fees }); // Return nested structure for client
-    } catch (error) {
-        res.json({ success: false, message: 'Error reading fees data' });
-    }
-});
-
-// Get staff for a specific department
-router.get('/get-staff', (req, res) => {
+// Update the get-fees endpoint to match frontend expectations
+router.get('/get-fees', async (req, res) => {
     try {
         const { department } = req.query;
-        console.log('Getting staff for department:', department);
+        console.log('Getting fees for department:', department);
         
-        const staffPath = path.join(__dirname, '..', 'data', 'staff.json');
-        const staff = JSON.parse(fs.readFileSync(staffPath, 'utf8'));
+        const db = getDatabase();
+        const fees = await db.collection('fees').findOne({ department: department || 'default' });
         
-        if (!staff[department]) {
+        if (!fees) {
             return res.status(404).json({
                 success: false,
                 message: 'Department not found'
             });
         }
 
-        console.log('Found HOD:', staff[department]);
+        console.log('Found fees:', fees);
         
         res.json({
             success: true,
-            hod: staff[department]
+            ...fees.fees
+        });
+    } catch (error) {
+        console.error('Error getting fees:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting fees data'
+        });
+    }
+});
+
+// Update the update-fees endpoint to match frontend expectations
+router.post('/update-fees', auth, async (req, res) => {
+    try {
+        const { department, ...fees } = req.body;
+        console.log('Updating fees for department:', department);
+        console.log('New fees data:', fees);
+        
+        const db = getDatabase();
+        
+        const result = await db.collection('fees').updateOne(
+            { department: department || 'default' },
+            { $set: { fees } },
+            { upsert: true }
+        );
+        
+        console.log('MongoDB update result:', result);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating fees:', error);
+        res.status(500).json({ success: false, message: 'Error updating fees' });
+    }
+});
+
+// Get staff for a specific department
+router.get('/get-staff', async (req, res) => {
+    try {
+        const { department } = req.query;
+        console.log('Getting staff for department:', department);
+        
+        const db = getDatabase();
+        const staff = await db.collection('staff').findOne({ department });
+        
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Department not found'
+            });
+        }
+
+        console.log('Found HOD:', staff);
+        
+        res.json({
+            success: true,
+            hod: staff
         });
     } catch (error) {
         console.error('Error getting staff:', error);
@@ -328,37 +378,30 @@ router.get('/get-staff', (req, res) => {
     }
 });
 
-router.get('/get-staff-member', (req, res) => {
+router.get('/get-staff-member', async (req, res) => {
     try {
-        const staff = JSON.parse(fs.readFileSync(STAFF_FILE));
-        const member = staff[req.query.department].find(s => s.id === req.query.id);
+        const db = getDatabase();
+        const member = await db.collection('staff').findOne({
+            department: req.query.department,
+            id: req.query.id
+        });
         res.json({ success: true, staff: member });
     } catch (error) {
         res.json({ success: false, message: 'Error reading staff data' });
     }
 });
 
-router.post('/update-staff', (req, res) => {
-    if (!req.session.isAdmin) {
-        return res.status(401).json({ success: false, message: 'Not authenticated' });
-    }
-
+router.post('/update-staff', auth, async (req, res) => {
     try {
-        const staff = JSON.parse(fs.readFileSync(STAFF_FILE));
         const { department, name } = req.body;
+        const db = getDatabase();
         
-        if (!staff[department]) {
-            return res.json({
-                success: false,
-                message: 'Invalid department'
-            });
-        }
-
-        staff[department] = {
-            name: name
-        };
-
-        fs.writeFileSync(STAFF_FILE, JSON.stringify(staff, null, 2));
+        const result = await db.collection('staff').updateOne(
+            { department },
+            { $set: { name } },
+            { upsert: true }
+        );
+        
         res.json({ success: true });
     } catch (error) {
         console.error('Error updating staff:', error);
@@ -366,17 +409,15 @@ router.post('/update-staff', (req, res) => {
     }
 });
 
-router.post('/delete-staff', (req, res) => {
-    if (!req.session.isAdmin) {
-        return res.status(401).json({ success: false, message: 'Not authenticated' });
-    }
-
+router.post('/delete-staff', auth, async (req, res) => {
     try {
-        const staff = JSON.parse(fs.readFileSync(STAFF_FILE));
         const { id, department } = req.body;
+        const db = getDatabase();
         
-        staff[department] = staff[department].filter(s => s.id !== id);
-        fs.writeFileSync(STAFF_FILE, JSON.stringify(staff, null, 2));
+        await db.collection('staff').deleteOne({
+            department,
+            id
+        });
         
         res.json({ success: true });
     } catch (error) {
@@ -405,12 +446,14 @@ try {
 }
 
 // Get board members (public route)
-router.get('/board-members', (req, res) => {
+router.get('/board-members', async (req, res) => {
     try {
-        const boardMembers = JSON.parse(fs.readFileSync(BOARD_MEMBERS_FILE));
+        const db = getDatabase();
+        const boardMembers = await db.collection('board_members').findOne({});
+        
         res.json({ 
             success: true, 
-            members: boardMembers.members 
+            members: boardMembers ? boardMembers.members : [] 
         });
     } catch (error) {
         console.error('Error reading board members:', error);
@@ -422,33 +465,24 @@ router.get('/board-members', (req, res) => {
 });
 
 // Add new board member
-router.post('/add-board-member', (req, res) => {
-    console.log('Received add board member request:', req.body);
-    
-    if (!req.session.isAdmin) {
-        return res.status(401).json({ success: false, message: 'Not authenticated' });
-    }
-
+router.post('/add-board-member', auth, async (req, res) => {
     try {
-        const boardMembers = JSON.parse(fs.readFileSync(BOARD_MEMBERS_FILE));
+        const { name, position, role } = req.body;
+        const db = getDatabase();
+        
         const newMember = {
             id: Date.now().toString(),
-            name: req.body.name,
-            position: req.body.position,
-            role: req.body.role || 'Board Member'
+            name,
+            position,
+            role: role || 'Board Member'
         };
         
-        console.log('Creating new member:', newMember);
+        const result = await db.collection('board_members').updateOne(
+            {},
+            { $push: { members: newMember } },
+            { upsert: true }
+        );
         
-        // Make sure we're accessing the correct structure
-        if (!boardMembers.members) {
-            boardMembers.members = [];
-        }
-        
-        boardMembers.members.push(newMember);
-        fs.writeFileSync(BOARD_MEMBERS_FILE, JSON.stringify(boardMembers, null, 2));
-
-        console.log('Added new board member:', newMember);
         res.json({ 
             success: true, 
             message: 'Board member added successfully',
@@ -466,9 +500,6 @@ router.post('/add-board-member', (req, res) => {
 // Update board member
 router.post('/update-board-member', auth, async (req, res) => {
     try {
-        // Log the incoming request
-        console.log('Update request received:', req.body);
-
         const { members } = req.body;
         if (!Array.isArray(members)) {
             return res.status(400).json({
@@ -477,36 +508,19 @@ router.post('/update-board-member', auth, async (req, res) => {
             });
         }
 
-        // Create new board members structure
-        const boardMembers = {
-            members: members.map(member => ({
-                id: member.id,
-                name: member.name,
-                position: member.position,
-                role: member.role || 'Board Member'
-            }))
-        };
-
-        // Log the data being written
-        console.log('Writing board members:', boardMembers);
-
-        // Write to file synchronously to avoid any race conditions
-        fs.writeFileSync(
-            path.join(__dirname, '..', 'data', 'board_members.json'),
-            JSON.stringify(boardMembers, null, 2),
-            'utf8'
+        const db = getDatabase();
+        const result = await db.collection('board_members').updateOne(
+            {},
+            { $set: { members } },
+            { upsert: true }
         );
-
-        console.log('Board members updated successfully');
+        
         res.json({ 
             success: true, 
             message: 'Board members updated successfully'
         });
     } catch (error) {
-        // Log the full error
         console.error('Error updating board members:', error);
-        console.error('Stack trace:', error.stack);
-        
         res.status(500).json({ 
             success: false, 
             message: 'Error updating board members: ' + error.message
@@ -515,28 +529,23 @@ router.post('/update-board-member', auth, async (req, res) => {
 });
 
 // Delete board member
-router.post('/delete-board-member', (req, res) => {
-    if (!req.session.isAdmin) {
-        return res.status(401).json({ success: false, message: 'Not authenticated' });
-    }
-
+router.post('/delete-board-member', auth, async (req, res) => {
     try {
         const { id } = req.body;
-        const boardMembers = JSON.parse(fs.readFileSync(BOARD_MEMBERS_FILE));
+        const db = getDatabase();
         
-        const initialLength = boardMembers.members.length;
-        boardMembers.members = boardMembers.members.filter(member => member.id !== id);
+        const result = await db.collection('board_members').updateOne(
+            {},
+            { $pull: { members: { id } } }
+        );
         
-        if (boardMembers.members.length === initialLength) {
+        if (result.modifiedCount === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Board member not found'
             });
         }
         
-        fs.writeFileSync(BOARD_MEMBERS_FILE, JSON.stringify(boardMembers, null, 2));
-        console.log('Deleted board member with ID:', id);
-
         res.json({ 
             success: true, 
             message: 'Board member deleted successfully' 
@@ -554,7 +563,6 @@ router.post('/delete-board-member', (req, res) => {
 router.post('/update-hod', auth, async (req, res) => {
     try {
         const { department, name } = req.body;
-        console.log('Updating HOD:', { department, name });
         
         if (!department || !name) {
             return res.status(400).json({
@@ -563,14 +571,12 @@ router.post('/update-hod', auth, async (req, res) => {
             });
         }
 
-        // Update staff.json
-        const staffPath = path.join(__dirname, '..', 'data', 'staff.json');
-        const staff = JSON.parse(fs.readFileSync(staffPath, 'utf8'));
-        
-        staff[department] = { name };
-        fs.writeFileSync(staffPath, JSON.stringify(staff, null, 2));
-        
-        console.log('Updated staff.json successfully');
+        const db = getDatabase();
+        const result = await db.collection('staff').updateOne(
+            { department },
+            { $set: { name } },
+            { upsert: true }
+        );
         
         res.json({ 
             success: true,
@@ -586,9 +592,11 @@ router.post('/update-hod', auth, async (req, res) => {
 });
 
 // Get current staff/HODs
-router.get('/staff', (req, res) => {
+router.get('/staff', async (req, res) => {
     try {
-        const staff = JSON.parse(fs.readFileSync(STAFF_FILE));
+        const db = getDatabase();
+        const staff = await db.collection('staff').find({}).toArray();
+        
         res.json({ 
             success: true,
             staff: staff 
@@ -621,14 +629,14 @@ if (!fs.existsSync(ENROLLMENT_FILE)) {
 }
 
 // Get enrollment data
-router.get('/enrollment', (req, res) => {
+router.get('/enrollment', async (req, res) => {
     try {
-        console.log('Reading enrollment from:', ENROLLMENT_FILE);
-        const enrollment = JSON.parse(fs.readFileSync(ENROLLMENT_FILE, 'utf8'));
-        console.log('Sending enrollment data:', enrollment);
+        const db = getDatabase();
+        const enrollment = await db.collection('enrollment').findOne({});
+        
         res.json({
             success: true,
-            years: enrollment.years
+            years: enrollment ? enrollment.years : []
         });
     } catch (error) {
         console.error('Error reading enrollment:', error);
@@ -640,11 +648,10 @@ router.get('/enrollment', (req, res) => {
 });
 
 // Update enrollment data
-router.post('/update-enrollment', auth, (req, res) => {
+router.post('/update-enrollment', auth, async (req, res) => {
     try {
         const { years } = req.body;
-        console.log('Received enrollment update:', years);
-
+        
         if (!Array.isArray(years)) {
             return res.status(400).json({
                 success: false,
@@ -664,8 +671,12 @@ router.post('/update-enrollment', auth, (req, res) => {
             year.total = parseInt(year.boys) + parseInt(year.girls);
         }
 
-        fs.writeFileSync(ENROLLMENT_FILE, JSON.stringify({ years }, null, 2));
-        console.log('Updated enrollment successfully');
+        const db = getDatabase();
+        const result = await db.collection('enrollment').updateOne(
+            {},
+            { $set: { years } },
+            { upsert: true }
+        );
         
         res.json({ 
             success: true,

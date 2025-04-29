@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const adminRouter = require('./js/admin');
+const { connectToDatabase } = require('./js/db');
 const app = express();
 const cors = require('cors');
 
@@ -15,7 +16,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 
 // Middleware
 app.use(express.json());
@@ -75,8 +75,20 @@ app.get('/main.js', (req, res) => {
 
 // Start server with error handling
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-}).on('error', (err) => {
-    console.error('Failed to start server:', err);
-}); 
+
+// Connect to MongoDB and start server
+async function startServer() {
+    try {
+        await connectToDatabase();
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        }).on('error', (err) => {
+            console.error('Failed to start server:', err);
+        });
+    } catch (error) {
+        console.error('Failed to connect to database:', error);
+        process.exit(1);
+    }
+}
+
+startServer(); 
