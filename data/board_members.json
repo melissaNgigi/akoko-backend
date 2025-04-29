@@ -1,0 +1,70 @@
+{
+  "members": [
+    {
+      "id": "1",
+      "name": "Dr. Ruth Otieno",
+      "position": "Board Chairperson",
+      "role": "Overall leadership and governance of the school board"
+    },
+    {
+      "id": "2",
+      "name": "Mr. John Ojeya",
+      "position": "Principal (Secretary)",
+      "role": "School administration and board secretary"
+    },
+    {
+      "id": "3",
+      "name": "Mr. David Marenya",
+      "position": "Vice Chairman",
+      "role": "Support chairman and oversee strategic planning"
+    },
+    {
+      "id": "4",
+      "name": "Mr. Willis Moyi",
+      "position": "P.A Chairman",
+      "role": "Support chairman and oversee strategic planning"
+    },
+    {
+      "id": "5",
+      "name": "Mr. Alfred Mwaiba",
+      "position": "SDCE",
+      "role": "Support chairman and oversee strategic planning"
+    },
+    {
+      "id": "6",
+      "name": "Mr. Matthews Obwong'",
+      "position": "Member",
+      "role": "Board Member"
+    },
+    {
+      "id": "7",
+      "name": "Mr. Francis Agalo",
+      "position": "Member",
+      "role": "Board Member"
+    },
+    {
+      "id": "8",
+      "name": "Mr. Ambrose Opiyo",
+      "position": "Member",
+      "role": "Board Member"
+    },
+    {
+      "id": "9",
+      "name": "Mrs. Jane Ongong'a",
+      "position": "Member",
+      "role": "Board Member"
+    },
+    {
+      "id": "10",
+      "name": "Rev. Patrick Ochieng'",
+      "position": "Member",
+      "role": "Board Member"
+    },
+    {
+      "id": "11",
+      "name": "Mr. Antony Orege",
+      "position": "Member",
+      "role": "Board Member"
+    }
+  ]
+}
