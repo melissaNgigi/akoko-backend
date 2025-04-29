@@ -7,6 +7,96 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const { auth, JWT_SECRET } = require('../middleware/auth');
 
+// Robust file writing function
+const writeFileSync = (filePath, data) => {
+    try {
+        console.log(`\n=== Starting File Write Operation ===`);
+        console.log(`Target file: ${filePath}`);
+        console.log(`Absolute path: ${path.resolve(filePath)}`);
+        
+        // Create directory if it doesn't exist
+        const dir = path.dirname(filePath);
+        console.log(`Checking directory: ${dir}`);
+        console.log(`Absolute directory path: ${path.resolve(dir)}`);
+        
+        if (!fs.existsSync(dir)) {
+            console.log(`Directory doesn't exist, creating: ${dir}`);
+            fs.mkdirSync(dir, { recursive: true });
+            console.log(`Directory created successfully`);
+        }
+
+        // Check file permissions
+        try {
+            console.log(`Checking file permissions...`);
+            fs.accessSync(filePath, fs.constants.R_OK | fs.constants.W_OK);
+            console.log(`File is readable and writable`);
+        } catch (permError) {
+            console.error(`File permission error:`, permError);
+            throw new Error(`File permission error: ${permError.message}`);
+        }
+        
+        // Write to a temporary file first
+        const tempFile = `${filePath}.tmp`;
+        console.log(`\nWriting to temporary file: ${tempFile}`);
+        console.log(`Absolute temp file path: ${path.resolve(tempFile)}`);
+        
+        try {
+            fs.writeFileSync(tempFile, data);
+            console.log(`Successfully wrote to temporary file`);
+        } catch (writeError) {
+            console.error(`Error writing to temporary file:`, writeError);
+            throw new Error(`Failed to write to temporary file: ${writeError.message}`);
+        }
+        
+        // Rename the temporary file to the target file
+        console.log(`\nRenaming temporary file to target file`);
+        try {
+            fs.renameSync(tempFile, filePath);
+            console.log(`Successfully renamed file`);
+        } catch (renameError) {
+            console.error(`Error renaming file:`, renameError);
+            throw new Error(`Failed to rename file: ${renameError.message}`);
+        }
+        
+        // Verify the write was successful
+        console.log(`\nVerifying write...`);
+        try {
+            const writtenData = fs.readFileSync(filePath, 'utf8');
+            if (writtenData !== data) {
+                console.error(`Data verification failed!`);
+                console.error(`Expected:`, data);
+                console.error(`Got:`, writtenData);
+                throw new Error('Data verification failed after write');
+            }
+            console.log(`Write verification successful`);
+        } catch (verifyError) {
+            console.error(`Verification error:`, verifyError);
+            throw new Error(`Failed to verify write: ${verifyError.message}`);
+        }
+        
+        console.log(`\n=== File Write Operation Completed Successfully ===\n`);
+        return true;
+    } catch (error) {
+        console.error(`\n=== File Write Operation Failed ===`);
+        console.error(`Error details:`, error);
+        console.error(`Error stack:`, error.stack);
+        
+        // Clean up temporary file if it exists
+        const tempFile = `${filePath}.tmp`;
+        if (fs.existsSync(tempFile)) {
+            console.log(`Cleaning up temporary file`);
+            try {
+                fs.unlinkSync(tempFile);
+                console.log(`Temporary file cleaned up`);
+            } catch (cleanupError) {
+                console.error(`Error cleaning up temporary file:`, cleanupError);
+            }
+        }
+        
+        throw error;
+    }
+};
+
 // Store credentials in a JSON file (in production, use a proper database)
 const CREDENTIALS_FILE = path.join(__dirname, '..', 'data', 'admin_credentials.json');
 
@@ -233,15 +323,18 @@ router.post('/update-fees', auth, (req, res) => {
         const dataToWrite = JSON.stringify(req.body, null, 2);
         console.log('\nData to write:', dataToWrite);
 
+        // Get absolute path
+        const absolutePath = path.resolve(FEES_FILE);
+        console.log('\nUsing absolute path:', absolutePath);
+
         // Check if file exists before writing
         console.log('\nChecking file existence...');
-        console.log('File path:', FEES_FILE);
-        console.log('File exists:', fs.existsSync(FEES_FILE));
+        console.log('File exists:', fs.existsSync(absolutePath));
 
         // Get current file content
         let currentContent = '';
         try {
-            currentContent = fs.readFileSync(FEES_FILE, 'utf8');
+            currentContent = fs.readFileSync(absolutePath, 'utf8');
             console.log('\nCurrent file content:', currentContent);
         } catch (readError) {
             console.error('Error reading current file:', readError);
@@ -250,7 +343,7 @@ router.post('/update-fees', auth, (req, res) => {
         // Write the data
         console.log('\nAttempting to write file...');
         try {
-            writeFileSync(FEES_FILE, dataToWrite);
+            writeFileSync(absolutePath, dataToWrite);
             console.log('Write operation completed');
         } catch (writeError) {
             console.error('Error during write:', writeError);
@@ -259,7 +352,7 @@ router.post('/update-fees', auth, (req, res) => {
 
         // Verify the write by reading back
         console.log('\nVerifying write...');
-        const writtenData = fs.readFileSync(FEES_FILE, 'utf8');
+        const writtenData = fs.readFileSync(absolutePath, 'utf8');
         console.log('Data after write:', writtenData);
         
         // Compare the data
@@ -677,90 +770,5 @@ router.post('/update-enrollment', auth, (req, res) => {
         });
     }
 });
-
-// Robust file writing function
-const writeFileSync = (filePath, data) => {
-    try {
-        console.log(`\n=== Starting File Write Operation ===`);
-        console.log(`Target file: ${filePath}`);
-        
-        // Create directory if it doesn't exist
-        const dir = path.dirname(filePath);
-        console.log(`Checking directory: ${dir}`);
-        if (!fs.existsSync(dir)) {
-            console.log(`Directory doesn't exist, creating: ${dir}`);
-            fs.mkdirSync(dir, { recursive: true });
-            console.log(`Directory created successfully`);
-        }
-
-        // Check file permissions
-        try {
-            console.log(`Checking file permissions...`);
-            fs.accessSync(filePath, fs.constants.R_OK | fs.constants.W_OK);
-            console.log(`File is readable and writable`);
-        } catch (permError) {
-            console.error(`File permission error:`, permError);
-            throw new Error(`File permission error: ${permError.message}`);
-        }
-        
-        // Write to a temporary file first
-        const tempFile = `${filePath}.tmp`;
-        console.log(`\nWriting to temporary file: ${tempFile}`);
-        try {
-            fs.writeFileSync(tempFile, data);
-            console.log(`Successfully wrote to temporary file`);
-        } catch (writeError) {
-            console.error(`Error writing to temporary file:`, writeError);
-            throw new Error(`Failed to write to temporary file: ${writeError.message}`);
-        }
-        
-        // Rename the temporary file to the target file
-        console.log(`\nRenaming temporary file to target file`);
-        try {
-            fs.renameSync(tempFile, filePath);
-            console.log(`Successfully renamed file`);
-        } catch (renameError) {
-            console.error(`Error renaming file:`, renameError);
-            throw new Error(`Failed to rename file: ${renameError.message}`);
-        }
-        
-        // Verify the write was successful
-        console.log(`\nVerifying write...`);
-        try {
-            const writtenData = fs.readFileSync(filePath, 'utf8');
-            if (writtenData !== data) {
-                console.error(`Data verification failed!`);
-                console.error(`Expected:`, data);
-                console.error(`Got:`, writtenData);
-                throw new Error('Data verification failed after write');
-            }
-            console.log(`Write verification successful`);
-        } catch (verifyError) {
-            console.error(`Verification error:`, verifyError);
-            throw new Error(`Failed to verify write: ${verifyError.message}`);
-        }
-        
-        console.log(`\n=== File Write Operation Completed Successfully ===\n`);
-        return true;
-    } catch (error) {
-        console.error(`\n=== File Write Operation Failed ===`);
-        console.error(`Error details:`, error);
-        console.error(`Error stack:`, error.stack);
-        
-        // Clean up temporary file if it exists
-        const tempFile = `${filePath}.tmp`;
-        if (fs.existsSync(tempFile)) {
-            console.log(`Cleaning up temporary file`);
-            try {
-                fs.unlinkSync(tempFile);
-                console.log(`Temporary file cleaned up`);
-            } catch (cleanupError) {
-                console.error(`Error cleaning up temporary file:`, cleanupError);
-            }
-        }
-        
-        throw error;
-    }
-};
 
 module.exports = router; 
