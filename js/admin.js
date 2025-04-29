@@ -210,16 +210,17 @@ router.get('/fees', (req, res) => {
 // Update fees
 router.post('/update-fees', auth, (req, res) => {
     try {
-        console.log('Received fees update:', req.body);
+        console.log('Received fees update request:', req.body);
         
-        // Validate the data
         const requiredFields = [
             'boarding_term1', 'boarding_term2', 'boarding_term3',
             'day_term1', 'day_term2', 'day_term3'
         ];
         
+        // Validate the data
         for (const field of requiredFields) {
             if (typeof req.body[field] !== 'number') {
+                console.error(`Invalid value for ${field}:`, req.body[field]);
                 return res.status(400).json({
                     success: false,
                     message: `Invalid value for ${field}`
@@ -227,18 +228,27 @@ router.post('/update-fees', auth, (req, res) => {
             }
         }
 
-        fs.writeFileSync(FEES_FILE, JSON.stringify(req.body, null, 2));
-        console.log('Updated fees successfully');
+        // Convert the data to a string for writing
+        const dataToWrite = JSON.stringify(req.body, null, 2);
+        console.log('Data to write to file:', dataToWrite);
+
+        // Write the data
+        writeFileSync(FEES_FILE, dataToWrite);
+        
+        // Verify the write by reading back
+        const writtenData = fs.readFileSync(FEES_FILE, 'utf8');
+        console.log('Data after write:', writtenData);
         
         res.json({ 
             success: true,
-            message: 'Fees updated successfully'
+            message: 'Fees updated successfully',
+            data: JSON.parse(writtenData)
         });
     } catch (error) {
         console.error('Error updating fees:', error);
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error updating fees' 
+            message: 'Error updating fees: ' + error.message 
         });
     }
 });
@@ -635,5 +645,51 @@ router.post('/update-enrollment', auth, (req, res) => {
         });
     }
 });
+
+// Robust file writing function
+const writeFileSync = (filePath, data) => {
+    try {
+        console.log(`Attempting to write to ${filePath}`);
+        console.log('Data to write:', data);
+        
+        // Create directory if it doesn't exist
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+            console.log(`Creating directory: ${dir}`);
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Write to a temporary file first
+        const tempFile = `${filePath}.tmp`;
+        console.log(`Writing to temporary file: ${tempFile}`);
+        fs.writeFileSync(tempFile, data);
+        
+        // Rename the temporary file to the target file
+        console.log(`Renaming ${tempFile} to ${filePath}`);
+        fs.renameSync(tempFile, filePath);
+        
+        // Verify the write was successful
+        console.log('Verifying write...');
+        const writtenData = fs.readFileSync(filePath, 'utf8');
+        if (writtenData !== data) {
+            console.error('Data verification failed!');
+            console.error('Expected:', data);
+            console.error('Got:', writtenData);
+            throw new Error('Data verification failed after write');
+        }
+        
+        console.log('Write successful and verified');
+        return true;
+    } catch (error) {
+        console.error(`Error writing to ${filePath}:`, error);
+        // Clean up temporary file if it exists
+        const tempFile = `${filePath}.tmp`;
+        if (fs.existsSync(tempFile)) {
+            console.log('Cleaning up temporary file');
+            fs.unlinkSync(tempFile);
+        }
+        throw error;
+    }
+};
 
 module.exports = router; 
