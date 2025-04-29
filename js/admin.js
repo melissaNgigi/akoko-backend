@@ -48,9 +48,12 @@ if (!fs.existsSync(CREDENTIALS_FILE)) {
 
 // Store fees in a JSON file (in production, use a proper database)
 const FEES_FILE = path.join(__dirname, '..', 'data', 'fees.json');
+console.log('Fees file path:', FEES_FILE);
+console.log('Absolute fees file path:', path.resolve(FEES_FILE));
 
 // Initialize fees file if it doesn't exist
 if (!fs.existsSync(FEES_FILE)) {
+    console.log('Creating fees file with default values');
     const defaultFees = {
         boarding_term1: 20268,
         boarding_term2: 12160,
@@ -60,6 +63,7 @@ if (!fs.existsSync(FEES_FILE)) {
         day_term3: 2800
     };
     fs.writeFileSync(FEES_FILE, JSON.stringify(defaultFees, null, 2));
+    console.log('Fees file created');
 }
 
 // Staff management endpoints
@@ -233,7 +237,7 @@ router.get('/fees', (req, res) => {
 // Update fees
 router.post('/update-fees', auth, (req, res) => {
     try {
-        console.log('\nUpdating fees:', req.body);
+        console.log('Received update request:', req.body);
         
         const requiredFields = [
             'boarding_term1', 'boarding_term2', 'boarding_term3',
@@ -250,13 +254,29 @@ router.post('/update-fees', auth, (req, res) => {
             }
         }
 
-        // Write the data
-        writeFileSync(FEES_FILE, JSON.stringify(req.body, null, 2));
+        // Get the absolute path
+        const filePath = path.resolve(FEES_FILE);
+        console.log('Writing to:', filePath);
+
+        // Create the data directory if it doesn't exist
+        const dataDir = path.dirname(filePath);
+        if (!fs.existsSync(dataDir)) {
+            console.log('Creating data directory:', dataDir);
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        // Write the file
+        console.log('Writing data:', req.body);
+        fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+        
+        // Verify the write
+        const writtenData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        console.log('Verification - Written data:', writtenData);
         
         res.json({ 
             success: true,
             message: 'Fees updated successfully',
-            data: req.body
+            data: writtenData
         });
     } catch (error) {
         console.error('Error updating fees:', error);
