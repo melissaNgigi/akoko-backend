@@ -47,60 +47,6 @@ if (!fs.existsSync(CREDENTIALS_FILE)) {
     fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(DEFAULT_CREDENTIALS));
 }
 
-// Store fees in a JSON file (in production, use a proper database)
-const FEES_FILE = path.join(__dirname, '..', 'data', 'fees.json');
-console.log('Fees file path:', FEES_FILE);
-console.log('Absolute fees file path:', path.resolve(FEES_FILE));
-
-// Initialize fees file if it doesn't exist
-if (!fs.existsSync(FEES_FILE)) {
-    console.log('Creating fees file with default values');
-    const defaultFees = {
-        boarding_term1: 20268,
-        boarding_term2: 12160,
-        boarding_term3: 8107,
-        day_term1: 7000,
-        day_term2: 4200,
-        day_term3: 2800
-    };
-    fs.writeFileSync(FEES_FILE, JSON.stringify(defaultFees, null, 2));
-    console.log('Fees file created');
-}
-
-// Staff management endpoints
-const STAFF_FILE = path.join(__dirname, '..', 'data', 'staff.json');
-const DEPARTMENT_PATH = path.join(__dirname, '..');
-
-// Initialize staff file if it doesn't exist
-if (!fs.existsSync(STAFF_FILE)) {
-    fs.writeFileSync(STAFF_FILE, JSON.stringify({
-        mathematics: {
-            name: "Mr. Maurice Tuju"
-        },
-        science: {
-            name: "Mrs. Jane Smith"
-        },
-        languages: {
-            name: "Ms. Mary Johnson"
-        },
-        humanities: {
-            name: "Mr. James Brown"
-        },
-        technical: {
-            name: "Mr. Robert Wilson"
-        },
-        boarding: {
-            name: "Mrs. Sarah Williams"
-        },
-        games: {
-            name: "Mr. David Miller"
-        },
-        academics: {
-            name: "Dr. Elizabeth Taylor"
-        }
-    }));
-}
-
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -257,6 +203,18 @@ async function initializeCollections() {
             });
         }
 
+        // ─── Admissions seeding ───────────────────────────────────────────────
+        const admissionsExists = await db.collection('admissions').findOne({});
+        if (!admissionsExists) {
+            await db.collection('admissions').insertOne({
+                applications: 0,
+                accepted:     0,
+                rejected:     0,
+                pending:      0
+            });
+            console.log('Admissions collection initialized');
+        }
+
         console.log('MongoDB collections initialized successfully');
     } catch (error) {
         console.error('Error initializing MongoDB collections:', error);
@@ -292,59 +250,39 @@ router.get('/public-fees', async (req, res) => {
     }
 });
 
-// Update the get-fees endpoint to match frontend expectations
-router.get('/get-fees', async (req, res) => {
-    try {
-        const { department } = req.query;
-        console.log('Getting fees for department:', department);
-        
-        const db = getDatabase();
-        const fees = await db.collection('fees').findOne({ department: department || 'default' });
-        
-        if (!fees) {
-            return res.status(404).json({
-                success: false,
-                message: 'Department not found'
-            });
-        }
+// ─── FEES ROUTES (MongoDB only) ────────────────────────────────────────────────
 
-        console.log('Found fees:', fees);
-        
-        res.json({
-            success: true,
-            ...fees.fees
-        });
-    } catch (error) {
-        console.error('Error getting fees:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error getting fees data'
-        });
+// GET /admin/get-fees
+router.get('/get-fees', async (req, res) => {
+  try {
+    const dept = req.query.department || 'default';
+    const db   = getDatabase();
+    const doc  = await db.collection('fees').findOne({ department: dept });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Fees data not found' });
     }
+    res.json({ success: true, fees: doc.fees });
+  } catch (error) {
+    console.error('Error getting fees:', error);
+    res.status(500).json({ success: false, message: 'Error getting fees data' });
+  }
 });
 
-// Update the update-fees endpoint to match frontend expectations
+// POST /admin/update-fees
 router.post('/update-fees', auth, async (req, res) => {
-    try {
-        const { department, ...fees } = req.body;
-        console.log('Updating fees for department:', department);
-        console.log('New fees data:', fees);
-        
-        const db = getDatabase();
-        
-        const result = await db.collection('fees').updateOne(
-            { department: department || 'default' },
-            { $set: { fees } },
-            { upsert: true }
-        );
-        
-        console.log('MongoDB update result:', result);
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error updating fees:', error);
-        res.status(500).json({ success: false, message: 'Error updating fees' });
-    }
+  try {
+    const { department = 'default', fees } = req.body;
+    const db = getDatabase();
+    await db.collection('fees').updateOne(
+      { department },
+      { $set: { fees } },
+      { upsert: true }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating fees:', error);
+    res.status(500).json({ success: false, message: 'Error updating fees' });
+  }
 });
 
 // Get staff for a specific department
@@ -426,24 +364,7 @@ router.post('/delete-staff', auth, async (req, res) => {
 });
 
 // Board member routes
-const BOARD_MEMBERS_FILE = path.join(__dirname, '..', 'data', 'board_members.json');
-
-// Check and create board members file if it doesn't exist
-try {
-    if (!fs.existsSync(BOARD_MEMBERS_FILE)) {
-        const initialData = {
-            members: []
-        };
-        fs.writeFileSync(BOARD_MEMBERS_FILE, JSON.stringify(initialData, null, 2));
-        console.log('Created board_members.json file');
-    }
-    
-    // Test file permissions
-    fs.accessSync(BOARD_MEMBERS_FILE, fs.constants.R_OK | fs.constants.W_OK);
-    console.log('Board members file is readable and writable');
-} catch (error) {
-    console.error('Error with board_members.json file:', error);
-}
+// const BOARD_MEMBERS_FILE = path.join(__dirname, '..', 'data', 'board_members.json');
 
 // Get board members (public route)
 router.get('/board-members', async (req, res) => {
@@ -594,39 +515,21 @@ router.post('/update-hod', auth, async (req, res) => {
 // Get current staff/HODs
 router.get('/staff', async (req, res) => {
     try {
+        const { department } = req.query;
         const db = getDatabase();
-        const staff = await db.collection('staff').find({}).toArray();
         
-        res.json({ 
-            success: true,
-            staff: staff 
-        });
+        let query = {};
+        if (department) {
+            query.department = department;
+        }
+        
+        const staff = await db.collection('staff').find(query).toArray();
+        res.json({ success: true, staff });
     } catch (error) {
         console.error('Error reading staff:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error reading staff data' 
-        });
+        res.status(500).json({ success: false, message: 'Error reading staff data' });
     }
 });
-
-// Add this with your other constants at the top
-const ENROLLMENT_FILE = path.join(__dirname, '..', 'data', 'enrollment.json');
-
-// Initialize enrollment file if it doesn't exist
-if (!fs.existsSync(ENROLLMENT_FILE)) {
-    const defaultEnrollment = {
-        years: [
-            {
-                year: "2024",
-                boys: 694,
-                girls: 600,
-                total: 1294
-            }
-        ]
-    };
-    fs.writeFileSync(ENROLLMENT_FILE, JSON.stringify(defaultEnrollment, null, 2));
-}
 
 // Get enrollment data
 router.get('/enrollment', async (req, res) => {
@@ -689,6 +592,47 @@ router.post('/update-enrollment', auth, async (req, res) => {
             message: error.message || 'Error updating enrollment' 
         });
     }
+});
+
+// ─── DEPARTMENTS ROUTE ────────────────────────────────────────────────────────
+// GET /admin/departments
+router.get('/departments', async (req, res) => {
+  try {
+    const db = getDatabase();
+    // return all distinct department names
+    const departments = await db.collection('staff').distinct('department');
+    res.json({ success: true, departments });
+  } catch (err) {
+    console.error('Error fetching departments:', err);
+    res.status(500).json({ success: false, message: 'Error fetching departments' });
+  }
+});
+
+// ─── ADMISSIONS ROUTES ───────────────────────────────────────────────────────
+// GET /admin/admissions (public)
+router.get('/admissions', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const admissions = (await db.collection('admissions').findOne({})) || {};
+    res.json({ success: true, admissions });
+  } catch (err) {
+    console.error('Error fetching admissions:', err);
+    res.status(500).json({ success: false, message: 'Error fetching admissions' });
+  }
+});
+
+// POST /admin/update-admissions (admin only)
+router.post('/update-admissions', auth, async (req, res) => {
+  try {
+    const update = req.body; // { applications, accepted, rejected, pending }
+    const db = getDatabase();
+    await db.collection('admissions')
+            .updateOne({}, { $set: update }, { upsert: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating admissions:', err);
+    res.status(500).json({ success: false, message: 'Error updating admissions' });
+  }
 });
 
 module.exports = router; 
