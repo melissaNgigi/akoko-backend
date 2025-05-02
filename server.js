@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { connectToDatabase } = require('./js/db');
+const { connectToDatabase: connectToMongo, getDatabase: getMongoDb } = require('./js/db');
+const { connectToDatabase: connectToFallback, getDatabase: getFallbackDb } = require('./js/fallback-db');
 const adminRouter = require('./js/admin');
 
 // Create Express app
@@ -26,43 +27,46 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Export initializeCollections from admin.js
-const { initializeCollections } = adminRouter;
-
 // Start server
 const PORT = process.env.PORT || 3000;
 
+// Global database reference
+let usingFallback = false;
+
+// Override getDatabase to use the correct implementation
+const getDatabase = () => {
+  return usingFallback ? getFallbackDb() : getMongoDb();
+};
+
+// Export for admin.js
+module.exports.getDatabase = getDatabase;
+
 async function startServer() {
-  let retries = 5;
-  
-  while (retries > 0) {
+  try {
+    // Try MongoDB first
+    console.log('Attempting to connect to MongoDB...');
     try {
-      // Connect to MongoDB first
-      await connectToDatabase();
-      console.log('Database connected, initializing collections...');
-      
-      // Initialize collections if needed
-      if (adminRouter.initializeCollections) {
-        await adminRouter.initializeCollections();
-      }
-      
-      // Start server
-      app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-      
-      return; // Exit function on success
-    } catch (err) {
-      console.error(`Failed to start server (${retries} retries left):`, err);
-      retries--;
-      
-      if (retries > 0) {
-        console.log(`Retrying in 5 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      } else {
-        console.log('All retries failed. Server will not start.');
-      }
+      await connectToMongo();
+      console.log('MongoDB connected successfully');
+      usingFallback = false;
+    } catch (mongoErr) {
+      console.error('MongoDB connection failed, using fallback database:', mongoErr);
+      await connectToFallback();
+      usingFallback = true;
     }
+    
+    // Initialize collections
+    if (adminRouter.initializeCollections) {
+      await adminRouter.initializeCollections();
+    }
+    
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} using ${usingFallback ? 'fallback JSON database' : 'MongoDB'}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   }
 }
 

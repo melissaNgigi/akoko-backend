@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { auth, JWT_SECRET } = require('../middleware/auth');
-const { connectToDatabase, getDatabase } = require('./db');
+const { getDatabase } = require('../server');
 
 // Simple file writing function
 const writeFileSync = (filePath, data) => {
@@ -129,7 +129,7 @@ router.post('/logout', (req, res) => {
 async function initializeCollections() {
     try {
         // Wait for database connection
-        await connectToDatabase();
+        await getDatabase();
         const db = getDatabase();
         
         // Initialize users collection with default admin

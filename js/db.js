@@ -1,15 +1,10 @@
 const { MongoClient } = require('mongodb');
 
-// Connection URL - use environment variable or fallback
-const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko';
+// Connection URL with direct connection string format
+const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko?retryWrites=true&w=majority';
 
-// Simplified connection options for MongoDB 4.x
-const options = {
-  useUnifiedTopology: true,
-  useNewUrlParser: true,
-  // Only use one TLS option, not both
-  tlsAllowInvalidCertificates: true
-};
+// Minimal options - let the driver handle defaults
+const options = {};
 
 let client = null;
 let db = null;
