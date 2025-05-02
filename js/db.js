@@ -3,16 +3,12 @@ const { MongoClient } = require('mongodb');
 // Connection URL - use environment variable or fallback
 const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko';
 
-// Connection options with proper TLS settings for Node.js 16.x
+// Simplified connection options for MongoDB 4.x
 const options = {
   useUnifiedTopology: true,
   useNewUrlParser: true,
-  ssl: true,
-  tls: true,
-  tlsInsecure: true,  // Important for Node.js 16.x
-  tlsAllowInvalidCertificates: true,
-  retryWrites: true,
-  w: "majority"
+  // Only use one TLS option, not both
+  tlsAllowInvalidCertificates: true
 };
 
 let client = null;
