@@ -1,8 +1,21 @@
 const { MongoClient } = require('mongodb');
 
-// MongoDB connection URL
-const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko?retryWrites=true&w=majority&appName=Akoko';
-const client = new MongoClient(url);
+// Base URL without options
+const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko';
+
+// Connection options
+const options = {
+  retryWrites: true,
+  w: "majority",
+  appName: "Akoko",
+  ssl: true,
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+};
+
+const client = new MongoClient(url, options);
 
 let db;
 
@@ -28,4 +41,4 @@ function getDatabase() {
 module.exports = {
     connectToDatabase,
     getDatabase
-}; 
+};
