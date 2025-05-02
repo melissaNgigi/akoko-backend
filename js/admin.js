@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { auth, JWT_SECRET } = require('../middleware/auth');
-const { getDatabase } = require('./db');
+const { connectToDatabase, getDatabase } = require('./db');
 
 // Simple file writing function
 const writeFileSync = (filePath, data) => {
@@ -128,6 +128,8 @@ router.post('/logout', (req, res) => {
 // Initialize MongoDB collections with default data
 async function initializeCollections() {
     try {
+        // Wait for database connection
+        await connectToDatabase();
         const db = getDatabase();
         
         // Initialize users collection with default admin
@@ -215,8 +217,8 @@ async function initializeCollections() {
     }
 }
 
-// Call initialization when the server starts
-initializeCollections();
+// Don't call initialization directly - it will be called by app.js
+// Remove or comment out: initializeCollections();
 
 // Update the public fees endpoint to match frontend expectations
 router.get('/public-fees', async (req, res) => {
@@ -501,7 +503,7 @@ router.post('/update-hod', auth, async (req, res) => {
         console.error('Error updating HOD:', error);
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error updating HOD'
+            message: error.message || 'Error updating HOD' 
         });
     }
 });
@@ -629,4 +631,5 @@ router.post('/update-admissions', auth, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;
+module.exports.initializeCollections = initializeCollections;
