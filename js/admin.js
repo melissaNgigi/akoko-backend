@@ -6,7 +6,14 @@ const multer = require('multer');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { auth, JWT_SECRET } = require('../middleware/auth');
-const { getDatabase } = require('../server');
+let dbModule;
+
+function getDatabase() {
+  if (!dbModule) {
+    dbModule = require('../server');
+  }
+  return dbModule.getDatabase();
+}
 
 // Simple file writing function
 const writeFileSync = (filePath, data) => {
@@ -128,8 +135,6 @@ router.post('/logout', (req, res) => {
 // Initialize MongoDB collections with default data
 async function initializeCollections() {
     try {
-        // Wait for database connection
-        await getDatabase();
         const db = getDatabase();
         
         // Initialize users collection with default admin
@@ -213,7 +218,7 @@ async function initializeCollections() {
 
         console.log('MongoDB collections initialized successfully');
     } catch (error) {
-        console.error('Error initializing MongoDB collections:', error);
+        console.error('Error initializing collections:', error);
     }
 }
 
