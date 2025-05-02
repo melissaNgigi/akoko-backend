@@ -27,8 +27,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
+// IMPORTANT: Use the PORT environment variable that Render sets
+const PORT = process.env.PORT || 10000;
 
 // Global database reference
 let usingFallback = false;
@@ -43,7 +43,13 @@ module.exports.getDatabase = getDatabase;
 
 async function startServer() {
   try {
-    // Try MongoDB first
+    // Start the server FIRST, before database connection
+    // This ensures Render can detect the port binding
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+    
+    // Then try to connect to the database
     console.log('Attempting to connect to MongoDB...');
     try {
       await connectToMongo();
@@ -60,13 +66,21 @@ async function startServer() {
       await adminRouter.initializeCollections();
     }
     
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT} using ${usingFallback ? 'fallback JSON database' : 'MongoDB'}`);
+    console.log(`Server fully initialized using ${usingFallback ? 'fallback JSON database' : 'MongoDB'}`);
+    
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received, shutting down gracefully');
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
     });
+    
   } catch (err) {
     console.error('Failed to start server:', err);
-    process.exit(1);
+    // Don't exit immediately - let Render restart if needed
+    console.error('Server will attempt to continue running');
   }
 }
 
