@@ -1,44 +1,44 @@
 const { MongoClient } = require('mongodb');
 
-// Base URL without options
+// Connection URL - use environment variable or fallback
 const url = process.env.MONGODB_URI || 'mongodb+srv://ngigimelissa:0Qf9dlI1l2n5so2S@akoko.tyjuilm.mongodb.net/akoko';
 
-// Connection options
+// Connection options with proper TLS settings
 const options = {
-  retryWrites: true,
-  w: "majority",
-  appName: "Akoko",
   ssl: true,
   tls: true,
   tlsAllowInvalidCertificates: true,
-  useNewUrlParser: true,
   useUnifiedTopology: true
 };
 
-const client = new MongoClient(url, options);
-
-let db;
+let client = null;
+let db = null;
 
 async function connectToDatabase() {
-    try {
-        await client.connect();
-        console.log('Connected to MongoDB');
-        db = client.db('akoko');
-        return db;
-    } catch (error) {
-        console.error('Error connecting to MongoDB:', error);
-        throw error;
-    }
+  if (db) return db; // Return existing connection
+  
+  try {
+    console.log('Connecting to MongoDB...');
+    client = new MongoClient(url, options);
+    await client.connect();
+    console.log('Connected to MongoDB successfully');
+    
+    db = client.db('akoko');
+    return db;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
 }
 
 function getDatabase() {
-    if (!db) {
-        throw new Error('Database not connected');
-    }
-    return db;
+  if (!db) {
+    throw new Error('Database not connected - call connectToDatabase() first');
+  }
+  return db;
 }
 
 module.exports = {
-    connectToDatabase,
-    getDatabase
+  connectToDatabase,
+  getDatabase
 };

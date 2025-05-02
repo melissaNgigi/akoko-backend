@@ -8,15 +8,23 @@ const adminRouter = require('./js/admin');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // Routes
 app.use('/admin', adminRouter);
+
+// Simple health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // Export initializeCollections from admin.js
 const { initializeCollections } = adminRouter;
@@ -24,26 +32,24 @@ const { initializeCollections } = adminRouter;
 // Initialize the database connection before starting the server
 async function startServer() {
   try {
-    // Connect to MongoDB
+    // Connect to MongoDB first
     await connectToDatabase();
+    console.log('Database connected, initializing collections...');
     
-    // Initialize collections
-    await initializeCollections();
+    // Initialize collections if needed
+    if (adminRouter.initializeCollections) {
+      await adminRouter.initializeCollections();
+    }
     
-    // Start the Express server
+    // Start server
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
-    
-    // Handle graceful shutdown
-    process.on('SIGINT', () => {
-      console.log('Shutting down server...');
-      process.exit(0);
-    });
   } catch (err) {
     console.error('Failed to start server:', err);
-    process.exit(1);
+    // Don't exit - let the process restart
+    console.log('Will retry on next deployment...');
   }
 }
 
