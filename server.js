@@ -29,27 +29,40 @@ app.get('/health', (req, res) => {
 // Export initializeCollections from admin.js
 const { initializeCollections } = adminRouter;
 
-// Initialize the database connection before starting the server
+// Start server
+const PORT = process.env.PORT || 3000;
+
 async function startServer() {
-  try {
-    // Connect to MongoDB first
-    await connectToDatabase();
-    console.log('Database connected, initializing collections...');
-    
-    // Initialize collections if needed
-    if (adminRouter.initializeCollections) {
-      await adminRouter.initializeCollections();
+  let retries = 5;
+  
+  while (retries > 0) {
+    try {
+      // Connect to MongoDB first
+      await connectToDatabase();
+      console.log('Database connected, initializing collections...');
+      
+      // Initialize collections if needed
+      if (adminRouter.initializeCollections) {
+        await adminRouter.initializeCollections();
+      }
+      
+      // Start server
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+      
+      return; // Exit function on success
+    } catch (err) {
+      console.error(`Failed to start server (${retries} retries left):`, err);
+      retries--;
+      
+      if (retries > 0) {
+        console.log(`Retrying in 5 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        console.log('All retries failed. Server will not start.');
+      }
     }
-    
-    // Start server
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('Failed to start server:', err);
-    // Don't exit - let the process restart
-    console.log('Will retry on next deployment...');
   }
 }
 
