@@ -31,22 +31,6 @@ const writeFileSync = (filePath, data) => {
     }
 };
 
-// Store credentials in a JSON file (in production, use a proper database)
-const CREDENTIALS_FILE = path.join(__dirname, '..', 'data', 'admin_credentials.json');
-
-// Default credentials for first-time setup
-const DEFAULT_CREDENTIALS = {
-    username: 'admin',
-    password: bcrypt.hashSync('admin123', 8)
-};
-
-// Initialize credentials file if it doesn't exist
-if (!fs.existsSync(CREDENTIALS_FILE)) {
-    console.log('Creating new credentials file with default admin/admin123');
-    console.log('Default credentials:', DEFAULT_CREDENTIALS);
-    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(DEFAULT_CREDENTIALS));
-}
-
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -70,60 +54,58 @@ router.get('/check-auth', auth, (req, res) => {
 });
 
 // Login endpoint
-router.post('/login', (req, res) => {
-    console.log('Received login request:', req.body);
-    const { username, password } = req.body;
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
-    
-    if (username === credentials.username && 
-        bcrypt.compareSync(password, credentials.password)) {
-        console.log('Login successful');
-        // Generate JWT token
-        const token = jwt.sign(
-            { username, isAdmin: true },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-        );
-        res.json({ success: true, token });
-    } else {
+router.post('/login', async (req, res) => {
+    try {
+        console.log('Received login request:', req.body);
+        const { username, password } = req.body;
+        
+        const db = getDatabase();
+        const user = await db.collection('users').findOne({ username });
+        
+        if (user && bcrypt.compareSync(password, user.password)) {
+            console.log('Login successful');
+            // Generate JWT token
+            const token = jwt.sign(
+                { username, isAdmin: true },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            return res.json({ success: true, token });
+        }
+        
         console.log('Login failed');
         res.json({ success: false });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 
 // Change credentials endpoint
-router.post('/change-credentials', (req, res) => {
-    if (!req.session.isAdmin) {
-        return res.status(401).json({ 
-            success: false, 
-            message: 'Not authenticated' 
-        });
-    }
-
-    const { currentPassword, newUsername, newPassword } = req.body;
-    
+router.post('/change-credentials', auth, async (req, res) => {
     try {
-        const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
-
-        // Verify current password
-        if (!bcrypt.compareSync(currentPassword, credentials.password)) {
+        const { currentPassword, newUsername, newPassword } = req.body;
+        const db = getDatabase();
+        
+        // Verify current password matches what's in MongoDB
+        const user = await db.collection('users').findOne({ username: req.user.username });
+        if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
             return res.json({ 
                 success: false, 
                 message: 'Current password is incorrect' 
             });
         }
 
-        // Update credentials
+        // Update credentials in MongoDB
         const hashedPassword = bcrypt.hashSync(newPassword, 10);
-        const newCredentials = {
-            username: newUsername,
-            password: hashedPassword
-        };
-
-        fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(newCredentials, null, 2));
-        
-        // Force re-login by destroying the session
-        req.session.destroy();
+        await db.collection('users').updateOne(
+            { username: req.user.username },
+            { $set: { 
+                username: newUsername,
+                password: hashedPassword,
+                updatedAt: new Date()
+            }}
+        );
         
         res.json({ 
             success: true,
@@ -147,6 +129,18 @@ router.post('/logout', (req, res) => {
 async function initializeCollections() {
     try {
         const db = getDatabase();
+        
+        // Initialize users collection with default admin
+        const userExists = await db.collection('users').findOne({ username: 'admin' });
+        if (!userExists) {
+            await db.collection('users').insertOne({
+                username: 'admin',
+                password: bcrypt.hashSync('admin123', 10),
+                role: 'admin',
+                createdAt: new Date()
+            });
+            console.log('Default admin user created');
+        }
         
         // Initialize fees collection
         const feesExists = await db.collection('fees').findOne({});
