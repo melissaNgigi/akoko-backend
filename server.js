@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // Routes
-app.use('/admin', adminRouter);
+app.use('/', adminRouter);
 
 // Add a simple test route directly in server.js
 app.get('/server-test', (req, res) => {

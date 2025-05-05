@@ -619,7 +619,7 @@ router.get('/test', (req, res) => {
 });
 
 // Public endpoint for board members
-router.get('admin/public/board-members', async (req, res) => {
+router.get('/public/board-members', async (req, res) => {
   try {
     const db = getDatabase();
     const doc = await db.collection('board').findOne({});
@@ -630,7 +630,7 @@ router.get('admin/public/board-members', async (req, res) => {
 });
 
 // Public endpoint for enrollment
-router.get('admin/public/enrollment', async (req, res) => {
+router.get('/public/enrollment', async (req, res) => {
   try {
     const db = getDatabase();
     const enrollment = await db.collection('enrollment').find().toArray();
@@ -641,7 +641,7 @@ router.get('admin/public/enrollment', async (req, res) => {
 });
 
 // Public endpoint for fees
-router.get('admin/public/fees', async (req, res) => {
+router.get('/public/fees', async (req, res) => {
   try {
     const db = getDatabase();
     const fees = await db.collection('fees').findOne({});
@@ -652,7 +652,7 @@ router.get('admin/public/fees', async (req, res) => {
 });
 
 // Public endpoint for HODs by department
-router.get('admin/public/hod/:department', async (req, res) => {
+router.get('/public/hod/:department', async (req, res) => {
   try {
     const db = getDatabase();
     const dept = req.params.department;
