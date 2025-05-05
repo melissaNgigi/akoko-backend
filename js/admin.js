@@ -636,5 +636,10 @@ router.post('/update-admissions', auth, async (req, res) => {
   }
 });
 
+// Add a simple test endpoint
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'API is working' });
+});
+
 module.exports = router;
 module.exports.initializeCollections = initializeCollections;
