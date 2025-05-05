@@ -521,19 +521,19 @@ router.post('/add-enrollment', auth, async (req, res) => {
   try {
     const { year, boys, girls } = req.body;
     const db = getDatabase();
-    
+
     // Check if year already exists
     const existing = await db.collection('enrollment').findOne({ year });
     if (existing) {
       return res.json({ success: false, message: 'Year already exists' });
     }
-    
+
     await db.collection('enrollment').insertOne({
       year,
       boys: parseInt(boys),
       girls: parseInt(girls)
     });
-    
+
     res.json({ success: true, message: 'Enrollment data added' });
   } catch (err) {
     console.error('Error adding enrollment data:', err);
@@ -616,6 +616,51 @@ router.post('/update-admissions', auth, async (req, res) => {
 // Add a simple test endpoint
 router.get('/test', (req, res) => {
   res.json({ success: true, message: 'API is working' });
+});
+
+// Public endpoint for board members
+router.get('/public/board-members', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const doc = await db.collection('board').findOne({});
+    res.json({ success: true, members: doc ? doc.members : {} });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Public endpoint for enrollment
+router.get('/public/enrollment', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const enrollment = await db.collection('enrollment').find().toArray();
+    res.json({ success: true, enrollment: enrollment || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Public endpoint for fees
+router.get('/public/fees', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const fees = await db.collection('fees').findOne({});
+    res.json(fees || {});
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Public endpoint for HODs by department
+router.get('/public/hod/:department', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const dept = req.params.department;
+    const hod = await db.collection('staff').findOne({ department: dept, isHOD: true });
+    res.json({ success: true, hod });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 module.exports = router;
