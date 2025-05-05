@@ -622,8 +622,20 @@ router.get('/test', (req, res) => {
 router.get('/public/board-members', async (req, res) => {
   try {
     const db = getDatabase();
-    const doc = await db.collection('board').findOne({});
-    res.json({ success: true, members: doc ? doc.members : {} });
+    const boardMembers = await db.collection('boardMembers').findOne({ id: 'default' });
+    res.json({ 
+      success: true, 
+      members: boardMembers
+        ? {
+            chairperson: boardMembers.chairperson || {},
+            secretary: boardMembers.secretary || {},
+            vice_chairman: boardMembers.vice_chairman || {},
+            pa_chairman: boardMembers.pa_chairman || {},
+            sdce: boardMembers.sdce || {},
+            membersList: Array.isArray(boardMembers.membersList) ? boardMembers.membersList : []
+          }
+        : {}
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
