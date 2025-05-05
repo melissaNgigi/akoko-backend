@@ -368,89 +368,37 @@ router.post('/delete-staff', auth, async (req, res) => {
 // const BOARD_MEMBERS_FILE = path.join(__dirname, '..', 'data', 'board_members.json');
 
 // Get board members (public route)
-router.get('/board-members', async (req, res) => {
-    try {
-        const db = getDatabase();
-        const boardMembers = await db.collection('board_members').findOne({});
-        
-        res.json({ 
-            success: true, 
-            members: boardMembers ? boardMembers.members : [] 
-        });
-    } catch (error) {
-        console.error('Error reading board members:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error reading board members data' 
-        });
-    }
+router.get('/board-members', auth, async (req, res) => {
+  try {
+    const db = getDatabase();
+    const boardMembers = await db.collection('boardMembers').findOne({ id: 'default' });
+    res.json({ success: true, members: boardMembers || {} });
+  } catch (err) {
+    console.error('Error getting board members:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Add new board member
-router.post('/add-board-member', auth, async (req, res) => {
-    try {
-        const { name, position, role } = req.body;
-        const db = getDatabase();
-        
-        const newMember = {
-            id: Date.now().toString(),
-            name,
-            position,
-            role: role || 'Board Member'
-        };
-        
-        const result = await db.collection('board_members').updateOne(
-            {},
-            { $push: { members: newMember } },
-            { upsert: true }
-        );
-        
-        res.json({ 
-            success: true, 
-            message: 'Board member added successfully',
-            member: newMember
-        });
-    } catch (error) {
-        console.error('Error adding board member:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: error.message || 'Error adding board member' 
-        });
-    }
+router.post('/update-board-members', auth, async (req, res) => {
+  try {
+    const { members } = req.body;
+    const db = getDatabase();
+    
+    await db.collection('boardMembers').updateOne(
+      { id: 'default' },
+      { $set: { ...members, id: 'default' } },
+      { upsert: true }
+    );
+    
+    res.json({ success: true, message: 'Board members updated' });
+  } catch (err) {
+    console.error('Error updating board members:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Update board member
-router.post('/update-board-member', auth, async (req, res) => {
-    try {
-        const { members } = req.body;
-        if (!Array.isArray(members)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid data format: members should be an array'
-            });
-        }
-
-        const db = getDatabase();
-        const result = await db.collection('board_members').updateOne(
-            {},
-            { $set: { members } },
-            { upsert: true }
-        );
-        
-        res.json({ 
-            success: true, 
-            message: 'Board members updated successfully'
-        });
-    } catch (error) {
-        console.error('Error updating board members:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error updating board members: ' + error.message
-        });
-    }
-});
-
-// Delete board member
 router.post('/delete-board-member', auth, async (req, res) => {
     try {
         const { id } = req.body;
@@ -533,66 +481,71 @@ router.get('/staff', async (req, res) => {
 });
 
 // Get enrollment data
-router.get('/enrollment', async (req, res) => {
-    try {
-        const db = getDatabase();
-        const enrollment = await db.collection('enrollment').findOne({});
-        
-        res.json({
-            success: true,
-            years: enrollment ? enrollment.years : []
-        });
-    } catch (error) {
-        console.error('Error reading enrollment:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error reading enrollment data: ' + error.message 
-        });
-    }
+router.get('/enrollment', auth, async (req, res) => {
+  try {
+    const db = getDatabase();
+    const enrollment = await db.collection('enrollment').find().toArray();
+    res.json({ success: true, enrollment: enrollment || [] });
+  } catch (err) {
+    console.error('Error getting enrollment data:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Update enrollment data
-router.post('/update-enrollment', auth, async (req, res) => {
-    try {
-        const { years } = req.body;
-        
-        if (!Array.isArray(years)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid data format: years should be an array'
-            });
-        }
-
-        // Validate each year's data
-        for (const year of years) {
-            if (!year.year || !year.boys || !year.girls) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Each year must have year, boys, and girls data'
-                });
-            }
-            // Calculate total
-            year.total = parseInt(year.boys) + parseInt(year.girls);
-        }
-
-        const db = getDatabase();
-        const result = await db.collection('enrollment').updateOne(
-            {},
-            { $set: { years } },
-            { upsert: true }
-        );
-        
-        res.json({ 
-            success: true,
-            message: 'Enrollment updated successfully'
-        });
-    } catch (error) {
-        console.error('Error updating enrollment:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: error.message || 'Error updating enrollment' 
-        });
+router.post('/add-enrollment', auth, async (req, res) => {
+  try {
+    const { year, boys, girls } = req.body;
+    const db = getDatabase();
+    
+    // Check if year already exists
+    const existing = await db.collection('enrollment').findOne({ year });
+    if (existing) {
+      return res.json({ success: false, message: 'Year already exists' });
     }
+    
+    await db.collection('enrollment').insertOne({
+      year,
+      boys: parseInt(boys),
+      girls: parseInt(girls)
+    });
+    
+    res.json({ success: true, message: 'Enrollment data added' });
+  } catch (err) {
+    console.error('Error adding enrollment data:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/update-enrollment', auth, async (req, res) => {
+  try {
+    const { year, boys, girls } = req.body;
+    const db = getDatabase();
+    
+    await db.collection('enrollment').updateOne(
+      { year },
+      { $set: { boys: parseInt(boys), girls: parseInt(girls) } }
+    );
+    
+    res.json({ success: true, message: 'Enrollment data updated' });
+  } catch (err) {
+    console.error('Error updating enrollment data:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/delete-enrollment', auth, async (req, res) => {
+  try {
+    const { year } = req.body;
+    const db = getDatabase();
+    
+    await db.collection('enrollment').deleteOne({ year });
+    
+    res.json({ success: true, message: 'Enrollment data deleted' });
+  } catch (err) {
+    console.error('Error deleting enrollment data:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // ─── DEPARTMENTS ROUTE ────────────────────────────────────────────────────────
