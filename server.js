@@ -10,7 +10,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*',
+  origin: 'https://akokoschool.co.ke',
   credentials: true
 }));
 app.use(express.json());
