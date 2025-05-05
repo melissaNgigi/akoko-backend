@@ -22,6 +22,11 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 // Routes
 app.use('/admin', adminRouter);
 
+// Add a simple test route directly in server.js
+app.get('/server-test', (req, res) => {
+  res.json({ success: true, message: 'Server is working' });
+});
+
 // Simple health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
