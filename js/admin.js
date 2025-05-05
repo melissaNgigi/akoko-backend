@@ -380,7 +380,7 @@ router.get('/board-members', auth, async (req, res) => {
 });
 
 // Add new board member
-router.post('/update-board-members', auth, async (req, res) => {
+router.post('/update-board-member', auth, async (req, res) => {
   try {
     const { members } = req.body;
     const db = getDatabase();
