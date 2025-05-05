@@ -372,7 +372,20 @@ router.get('/board-members', auth, async (req, res) => {
   try {
     const db = getDatabase();
     const boardMembers = await db.collection('boardMembers').findOne({ id: 'default' });
-    res.json({ success: true, members: boardMembers || {} });
+    // Return officers and membersList (array of normal members)
+    res.json({ 
+      success: true, 
+      members: boardMembers
+        ? {
+            chairperson: boardMembers.chairperson || {},
+            secretary: boardMembers.secretary || {},
+            vice_chairman: boardMembers.vice_chairman || {},
+            pa_chairman: boardMembers.pa_chairman || {},
+            sdce: boardMembers.sdce || {},
+            membersList: Array.isArray(boardMembers.membersList) ? boardMembers.membersList : []
+          }
+        : {}
+    });
   } catch (err) {
     console.error('Error getting board members:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -384,13 +397,24 @@ router.post('/update-board-member', auth, async (req, res) => {
   try {
     const { members } = req.body;
     const db = getDatabase();
-    
+
     await db.collection('boardMembers').updateOne(
       { id: 'default' },
-      { $set: { ...members, id: 'default' } },
+      {
+        $set: {
+          chairperson: members.chairperson || {},
+          secretary: members.secretary || {},
+          vice_chairman: members.vice_chairman || {},
+          pa_chairman: members.pa_chairman || {},
+          sdce: members.sdce || {},
+          // Store the array of normal members under 'membersList'
+          membersList: Array.isArray(members.membersList) ? members.membersList : [],
+          id: 'default'
+        }
+      },
       { upsert: true }
     );
-    
+
     res.json({ success: true, message: 'Board members updated' });
   } catch (err) {
     console.error('Error updating board members:', err);
