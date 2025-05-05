@@ -63,20 +63,20 @@ router.get('/check-auth', auth, (req, res) => {
 // Login endpoint
 router.post('/login', async (req, res) => {
     try {
-        console.log('Received login request:', req.body);
-        const { username, password } = req.body;
+    console.log('Received login request:', req.body);
+    const { username, password } = req.body;
         
         const db = getDatabase();
         const user = await db.collection('users').findOne({ username });
-        
+    
         if (user && bcrypt.compareSync(password, user.password)) {
-            console.log('Login successful');
-            // Generate JWT token
-            const token = jwt.sign(
-                { username, isAdmin: true },
-                JWT_SECRET,
-                { expiresIn: '24h' }
-            );
+        console.log('Login successful');
+        // Generate JWT token
+        const token = jwt.sign(
+            { username, isAdmin: true },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
             return res.json({ success: true, token });
         }
         
@@ -108,7 +108,7 @@ router.post('/change-credentials', auth, async (req, res) => {
         await db.collection('users').updateOne(
             { username: req.user.username },
             { $set: { 
-                username: newUsername,
+            username: newUsername,
                 password: hashedPassword,
                 updatedAt: new Date()
             }}
@@ -255,7 +255,7 @@ router.get('/public-fees', async (req, res) => {
 
 // GET /admin/get-fees
 router.get('/get-fees', async (req, res) => {
-  try {
+    try {
     const dept = req.query.department || 'default';
     const db   = getDatabase();
     const doc  = await db.collection('fees').findOne({ department: dept });
@@ -263,27 +263,27 @@ router.get('/get-fees', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Fees data not found' });
     }
     res.json({ success: true, fees: doc.fees });
-  } catch (error) {
-    console.error('Error getting fees:', error);
+    } catch (error) {
+        console.error('Error getting fees:', error);
     res.status(500).json({ success: false, message: 'Error getting fees data' });
-  }
+    }
 });
 
 // POST /admin/update-fees
 router.post('/update-fees', auth, async (req, res) => {
-  try {
+    try {
     const { department = 'default', fees } = req.body;
-    const db = getDatabase();
+        const db = getDatabase();
     await db.collection('fees').updateOne(
       { department },
-      { $set: { fees } },
-      { upsert: true }
-    );
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating fees:', error);
-    res.status(500).json({ success: false, message: 'Error updating fees' });
-  }
+            { $set: { fees } },
+            { upsert: true }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating fees:', error);
+        res.status(500).json({ success: false, message: 'Error updating fees' });
+    }
 });
 
 // Get staff for a specific department
@@ -369,12 +369,12 @@ router.post('/delete-staff', auth, async (req, res) => {
 
 // Get board members (public route)
 router.get('/board-members', auth, async (req, res) => {
-  try {
-    const db = getDatabase();
+    try {
+        const db = getDatabase();
     const boardMembers = await db.collection('boardMembers').findOne({ id: 'default' });
     // Return officers and membersList (array of normal members)
-    res.json({ 
-      success: true, 
+        res.json({ 
+            success: true, 
       members: boardMembers
         ? {
             chairperson: boardMembers.chairperson || {},
@@ -389,13 +389,13 @@ router.get('/board-members', auth, async (req, res) => {
   } catch (err) {
     console.error('Error getting board members:', err);
     res.status(500).json({ success: false, message: 'Server error' });
-  }
+    }
 });
 
 // Add new board member
 router.post('/update-board-member', auth, async (req, res) => {
-  try {
-    const { members } = req.body;
+    try {
+        const { members } = req.body;
     const db = getDatabase();
 
     await db.collection('boardMembers').updateOne(
@@ -412,9 +412,9 @@ router.post('/update-board-member', auth, async (req, res) => {
           id: 'default'
         }
       },
-      { upsert: true }
-    );
-
+            { upsert: true }
+        );
+        
     res.json({ success: true, message: 'Board members updated' });
   } catch (err) {
     console.error('Error updating board members:', err);
@@ -480,7 +480,7 @@ router.post('/update-hod', auth, async (req, res) => {
         console.error('Error updating HOD:', error);
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error updating HOD' 
+            message: error.message || 'Error updating HOD'
         });
     }
 });
@@ -506,14 +506,14 @@ router.get('/staff', async (req, res) => {
 
 // Get enrollment data
 router.get('/enrollment', auth, async (req, res) => {
-  try {
-    const db = getDatabase();
+    try {
+        const db = getDatabase();
     const enrollment = await db.collection('enrollment').find().toArray();
     res.json({ success: true, enrollment: enrollment || [] });
   } catch (err) {
     console.error('Error getting enrollment data:', err);
     res.status(500).json({ success: false, message: 'Server error' });
-  }
+    }
 });
 
 // Update enrollment data
@@ -542,7 +542,7 @@ router.post('/add-enrollment', auth, async (req, res) => {
 });
 
 router.post('/update-enrollment', auth, async (req, res) => {
-  try {
+    try {
     const { year, boys, girls } = req.body;
     const db = getDatabase();
     
@@ -603,7 +603,7 @@ router.get('/admissions', async (req, res) => {
 router.post('/update-admissions', auth, async (req, res) => {
   try {
     const update = req.body; // { applications, accepted, rejected, pending }
-    const db = getDatabase();
+        const db = getDatabase();
     await db.collection('admissions')
             .updateOne({}, { $set: update }, { upsert: true });
     res.json({ success: true });
@@ -623,8 +623,8 @@ router.get('/public/board-members', async (req, res) => {
   try {
     const db = getDatabase();
     const boardMembers = await db.collection('boardMembers').findOne({ id: 'default' });
-    res.json({ 
-      success: true, 
+        res.json({ 
+            success: true,
       members: boardMembers
         ? {
             chairperson: boardMembers.chairperson || {},
@@ -656,8 +656,8 @@ router.get('/public/enrollment', async (req, res) => {
 router.get('/public/fees', async (req, res) => {
   try {
     const db = getDatabase();
-    const fees = await db.collection('fees').findOne({});
-    res.json(fees || {});
+    const doc = await db.collection('fees').findOne({});
+    res.json(doc?.fees || {});
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -672,8 +672,8 @@ router.get('/public/hod/:department', async (req, res) => {
     res.json({ success: true, hod });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
-  }
+    }
 });
 
-module.exports = router;
+module.exports = router; 
 module.exports.initializeCollections = initializeCollections;
